@@ -1,0 +1,210 @@
+
+
+<html><head></head>
+<body><p>
+
+
+public Camera FirstPersonCamera;
+public GameObject CameraTarget;
+private Vector3 PrevARPosePosition;
+private bool Tracking = false;
+
+public void Start() {
+  //set initial position
+  PrevARPosePosition = Vector3.zero;
+}
+
+public void Update() {
+  UpdateApplicationLifecycle();
+
+  //move the person indicator according to position
+  Vector3 currentARPosition = Frame.Pose.position;
+  if (!Tracking) {
+    Tracking = true;
+    PrevARPosePosition = Frame.Pose.position;
+  }
+  //Remember the previous position so we can apply deltas
+  Vector3 deltaPosition = currentARPosition - PrevARPosePosition;
+  PrevARPosePosition = currentARPosition;
+  if (CameraTarget != null) {
+    // The initial forward vector of the sphere must be aligned with the initial camera 
+       direction in the XZ plane.
+    // We apply translation only in the XZ plane.
+    CameraTarget.transform.Translate(deltaPosition.x, 0.0f, deltaPosition.z);
+    // Set the pose rotation to be used in the CameraFollow script
+    FirstPersonCamera.GetComponent<ArrowDirection>().targetRot = Frame.Pose.rotation;
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+The piece of code shown above handles the rotation of the blue dot's arrow.-------------
+
+
+public Quaternion targetRot;        // The rotation of the device camera from 
+                                       Frame.Pose.rotation 
+public GameObject arrow;            // The direction indicator on the person indicator
+
+void LateUpdate() {
+  Vector3 targetEulerAngles = targetRot.eulerAngles;
+  float rotationToApplyAroundY = targetEulerAngles.y;
+  float newCamRotAngleY = Mathf.LerpAngle(arrow.transform.eulerAngles.y, 
+     rotationToApplyAroundY, rotationSmoothingSpeed * Time.deltaTime);
+  Quaternion newCamRotYQuat = Quaternion.Euler(0, newCamRotAngleY, 0);
+  arrow.transform.rotation = newCamRotYQuat;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+(placed on an empty gameobject). In its Update function every frame gets checked for containing a QR code.
+
+public class ScanStart : MonoBehaviour {
+    public GameObject ardevice; //ARCore device gameobject
+
+    private bool camAvailable; //bool used for seeing if rendering with camera is possible
+    private WebCamTexture backCam; //used to obtain video from device camera
+    private Texture defaultBackground; 
+
+    public RawImage background; // where to render to
+    public AspectRatioFitter fit; //fit rendered view to screen
+    public ImageRecognition imgRec; //object used to access method for setting location 
+
+    //setup logic to capture camera video
+    private void Start() {
+        defaultBackground = background.texture;
+        WebCamDevice[] devices = WebCamTexture.devices;
+        if(devices.Length == 0)
+        {
+            Debug.Log("No camera detected");
+            camAvailable = false;
+            return;
+        }
+
+        for(int i = 0; i < devices.Length; i++)
+        {
+            if (!devices[i].isFrontFacing)
+            {
+                backCam = new WebCamTexture(devices[i].name, Screen.width, Screen.height);
+            }
+        }
+
+        if(backCam == null)
+        {
+            Debug.Log("unable to find backcam");
+            return;
+        }
+
+        backCam.Play();
+        background.texture = backCam;
+        camAvailable = true;
+    }
+
+    //if camera setup render each frame the obtained images
+    private void Update()
+    {
+        if (!camAvailable)
+        {
+            return;
+        }
+        float ratio = (float)backCam.width / (float)backCam.height;
+        fit.aspectRatio = ratio;
+        float scaleY = backCam.videoVerticallyMirrored ? -1f: 1f;
+        background.rectTransform.localScale = new Vector3(1f, scaleY, 1f);
+        int orient = -backCam.videoRotationAngle;
+        background.rectTransform.localEulerAngles = new Vector3(0, 0, orient);
+        
+        bool result = imgRec.StartPosition(backCam);
+        //if result found that close this view and start ar application
+        if (result)
+        {
+            ardevice.GetComponent<ARCoreSession>().enabled = true;
+            background.gameObject.SetActive(false);
+            this.gameObject.SetActive(false);
+        } 
+    }
+}
+
+
+
+</p>
+</body>
+</html>
